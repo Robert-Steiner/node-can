@@ -22,8 +22,8 @@
 //-----------------------------------------------------------------------------
 // CAN-Object
 
-var can = require('./build/Release/can');
-var buffer = require('buffer');
+var can = require("./build/Release/can");
+var buffer = require("buffer");
 
 /**
  * @method createRawChannel
@@ -31,7 +31,9 @@ var buffer = require('buffer');
  * @return {RawChannel} a new channel object or exception
  * @for exports
  */
-exports.createRawChannel = function(channel, timestamps) { return new can.RawChannel(channel, timestamps); }
+exports.createRawChannel = function(channel, timestamps) {
+  return new can.RawChannel(channel, timestamps);
+};
 
 //-----------------------------------------------------------------------------
 /**
@@ -40,57 +42,56 @@ exports.createRawChannel = function(channel, timestamps) { return new can.RawCha
  * @module Signals
  */
 
-var _signals = require('./build/Release/can_signals');
+var _signals = require("./build/Release/can_signals");
 
-var kcd = require('./parse_kcd');
+var kcd = require("./parse_kcd");
 
 /**
  * The actual signal.
  * @class Signal
  */
-function Signal(desc)
-{
-        /**
-         * Symbolic name
-         * @attribute name
-         * @final
-         */
-	this.name = desc['name'];
-	this.spn = desc['spn'];
+function Signal(desc) {
+  /**
+   * Symbolic name
+   * @attribute name
+   * @final
+   */
+  this.name = desc["name"];
+  this.spn = desc["spn"];
 
-	this.bitOffset = desc['bitOffset'];
-	this.bitLength = desc['bitLength'];
-	this.endianess = desc['endianess'];
-	this.type = desc['type'];
+  this.bitOffset = desc["bitOffset"];
+  this.bitLength = desc["bitLength"];
+  this.endianess = desc["endianess"];
+  this.type = desc["type"];
 
-	this.intercept = desc['intercept'];
-	this.slope = desc['slope'];
+  this.intercept = desc["intercept"];
+  this.slope = desc["slope"];
 
-	this.minValue = desc['minValue'];
-	this.maxValue = desc['maxValue'];
+  this.minValue = desc["minValue"];
+  this.maxValue = desc["maxValue"];
 
-	this.unit = desc['unit'];
+  this.unit = desc["unit"];
 
-	/**
-	 * Label set for defined states of the signal.
-	 */
-	this.labels = desc['labels'];
+  /**
+   * Label set for defined states of the signal.
+   */
+  this.labels = desc["labels"];
 
-	/**
-	 * this will allow triggering on mux'ed message ids.
-	 */
-	this.muxGroup = [ desc['mux'] ];
+  /**
+   * this will allow triggering on mux'ed message ids.
+   */
+  this.muxGroup = [desc["mux"]];
 
-	/**
-	 * Current value
-	 *
-	 * @attribute value
-	 * @final
-	 */
-	this.value = null;
+  /**
+   * Current value
+   *
+   * @attribute value
+   * @final
+   */
+  this.value = null;
 
-	this.changelisteners = [];
-	this.updateListeners = [];
+  this.changelisteners = [];
+  this.updateListeners = [];
 }
 
 /**
@@ -100,9 +101,9 @@ function Signal(desc)
  * @for Signal
  */
 Signal.prototype.onChange = function(listener) {
-	this.changelisteners.push(listener);
-	return listener;
-}
+  this.changelisteners.push(listener);
+  return listener;
+};
 
 /**
  * Keep track of listeners who want to be notified if this signal updates
@@ -111,9 +112,9 @@ Signal.prototype.onChange = function(listener) {
  * @for Signal
  */
 Signal.prototype.onUpdate = function(listener) {
-	this.updateListeners.push(listener);
-	return listener;
-}
+  this.updateListeners.push(listener);
+  return listener;
+};
 
 /**
  * Remove listener from signal onChange and/or onUpdate
@@ -122,11 +123,11 @@ Signal.prototype.onUpdate = function(listener) {
  * @for Signal
  */
 Signal.prototype.removeListener = function(listener) {
-	var idx = this.changelisteners.indexOf(listener);
-	if (idx >= 0) this.changelisteners.splice(idx, 1);
-	idx = this.updateListeners.indexOf(listener);
-	if (idx >= 0) this.updateListeners.splice(idx, 1);
-}
+  var idx = this.changelisteners.indexOf(listener);
+  if (idx >= 0) this.changelisteners.splice(idx, 1);
+  idx = this.updateListeners.indexOf(listener);
+  if (idx >= 0) this.updateListeners.splice(idx, 1);
+};
 
 /**
  * Set new value of this signal. Any local registered clients will
@@ -137,97 +138,107 @@ Signal.prototype.removeListener = function(listener) {
  * @for Signal
  */
 Signal.prototype.update = function(newValue) {
+  if (newValue > this.maxValue) {
+    console.error(
+      "ERROR : " +
+        this.name +
+        " value= " +
+        newValue +
+        " is outof bounds  > " +
+        this.maxValue
+    );
+  } else if (newValue < this.minValue) {
+    console.error(
+      "ERROR : " +
+        this.name +
+        " value= " +
+        newValue +
+        " is outof bounds  < " +
+        this.minValue
+    );
+  }
+  var changed = this.value !== newValue;
+  this.value = newValue;
 
-	if (newValue > this.maxValue) {
-		console.error("ERROR : " + this.name + " value= " + newValue
-				+ " is outof bounds  > " + this.maxValue);
-	} else if (newValue < this.minValue) {
-		console.error("ERROR : " + this.name + " value= " + newValue
-				+ " is outof bounds  < " + this.minValue);
-	}
-	var changed = this.value !== newValue;
-	this.value = newValue;
-	
-	// Update all updateListeners, that the signal updated
-	for (f in this.updateListeners) {
-		this.updateListeners[f](this);
-	}
-	// Nothing changed
-	if ( ! changed) return;
+  // Update all updateListeners, that the signal updated
+  for (f in this.updateListeners) {
+    this.updateListeners[f](this);
+  }
+  // Nothing changed
+  if (!changed) return;
 
-	// Update all changelisteners, that the signal changed
-	for (f in this.changelisteners) {
-		this.changelisteners[f](this);
-	}
-}
+  // Update all changelisteners, that the signal changed
+  for (f in this.changelisteners) {
+    this.changelisteners[f](this);
+  }
+};
 
 //-----------------------------------------------------------------------------
 /**
  * Just a container to keep the Signals.
  * @class Message
  */
-function Message(desc)
-{
-        /**
-         * CAN identifier
-         * @attribute id
-         * @final
-         */
-	this.id = desc.id;
+function Message(desc) {
+  /**
+   * CAN identifier
+   * @attribute id
+   * @final
+   */
+  this.id = desc.id;
 
-	/**
-         * Extended Frame Format used
-         * @attribute ext
-         * @final
-         */
-	this.ext = desc.ext;
+  /**
+   * Extended Frame Format used
+   * @attribute ext
+   * @final
+   */
+  this.ext = desc.ext;
 
-        /**
-         * Symbolic name
-         * @attribute name
-         * @final
-         */
-	this.name = desc.name;
+  /**
+   * Symbolic name
+   * @attribute name
+   * @final
+   */
+  this.name = desc.name;
 
-        /**
-         * Length in bytes of resulting CAN message
-	 *
-	 * @attribute len
-	 * @final
-	 */
-	this.len = desc.length;
+  /**
+   * Length in bytes of resulting CAN message
+   *
+   * @attribute len
+   * @final
+   */
+  this.len = desc.length;
 
-	/**
-	 * This is the time frame that the message gets generated
-	 *
-	 * @attribute interval
-	 * @final
-	 */
-	this.interval = desc.interval;
+  /**
+   * This is the time frame that the message gets generated
+   *
+   * @attribute interval
+   * @final
+   */
+  this.interval = desc.interval;
 
-	/**
-	 * This is tells us the message is mutliplexed.
-	 *
-	 * @attribute muxed
-	 * @final
-	 */
-	this.muxed = desc.muxed;
+  /**
+   * This is tells us the message is mutliplexed.
+   *
+   * @attribute muxed
+   * @final
+   */
+  this.muxed = desc.muxed;
 
-	/**
-         * Named array of signals within this message. Accessible via index and name.
-         * @attribute {Signal} signals
-         * @final
-         */
-	this.signals = [];
+  /**
+   * Named array of signals within this message. Accessible via index and name.
+   * @attribute {Signal} signals
+   * @final
+   */
+  this.signals = [];
 
-	for (i in desc['signals']) {
-		var s = desc['signals'][i];
-		if (this.signals[s.name] && this.signals[s.name].muxGroup) {
-			this.signals[s.name].muxGroup.push(s.mux);
-		} else {
-			this.signals[s.name] = new Signal(s);
-		}
-	}
+  for (i in desc["signals"]) {
+    var s = desc["signals"][i];
+    if (this.signals[s.name] && this.signals[s.name].muxGroup) {
+      this.signals[s.name].muxGroup.push(s.mux);
+    } else {
+      this.signals[s.name] = new Signal(s);
+    }
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -242,70 +253,69 @@ function Message(desc)
  * @for DatabaseService
  */
 function DatabaseService(channel, db_desc) {
-	this.channel = channel;
+  this.channel = channel;
 
-        /**
-         * Named array of known messages. Accessible via index and name.
-         * @attribute {Message} messages
-         */
-	this.messages = [];
+  /**
+   * Named array of known messages. Accessible via index and name.
+   * @attribute {Message} messages
+   */
+  this.messages = [];
 
-	for (i in db_desc['messages']) {
-		var m = db_desc['messages'][i];
-		var id = m.id | (m.ext ? 1 : 0) << 31;
+  for (i in db_desc["messages"]) {
+    var m = db_desc["messages"][i];
+    var id = m.id;
 
-		var nm = new Message(m);
-		this.messages[id] = nm;
-		this.messages[m.name] = nm;
-	}
+    var nm = new Message(m);
+    this.messages[id] = nm;
+    this.messages[m.name] = nm;
+  }
 
-	// Subscribe to any incoming messages
-	channel.addListener("onMessage", this.onMessage, this);
+  // Subscribe to any incoming messages
+  channel.addListener("onMessage", this.onMessage, this);
 }
 
 // Callback for incoming messages
-DatabaseService.prototype.onMessage = function (msg) {
-	if (msg == undefined)
-		return;
-	if (msg.rtr)
-		return;
+DatabaseService.prototype.onMessage = function(msg) {
+  if (msg == undefined) return;
+  if (msg.rtr) return;
 
-	id = msg.id | (msg.ext ? 1 : 0) << 31;
+  id = msg.id;
 
-	var m = this.messages[id];
+  var m = this.messages[id];
 
-	if (!m)
-	{
-		return;
-	}
+  if (!m) {
+    return;
+  }
 
-	// this is the possible multiplexor for the signals coming in.
-	var b1mux = _signals.decode_signal(msg.data, 0, 8, true, false);
+  // this is the possible multiplexor for the signals coming in.
+  var b1mux = _signals.decode_signal(msg.data, 0, 8, true, false);
 
-	// Let the C-Portition extract and convert the signal
-	for (i in m.signals) {
-		var s = m.signals[i];
+  // Let the C-Portition extract and convert the signal
+  for (i in m.signals) {
+    var s = m.signals[i];
 
-		if (s.value === undefined)
-			continue;
+    if (s.value === undefined) continue;
 
-		// if this is a mux signal and the muxor isnt in my list...
-		if (m.muxed && s.muxGroup && s.muxGroup.indexOf(b1mux) == -1) {
-			continue;
-		}
+    // if this is a mux signal and the muxor isnt in my list...
+    if (m.muxed && s.muxGroup && s.muxGroup.indexOf(b1mux) == -1) {
+      continue;
+    }
 
-		var val = _signals.decode_signal(msg.data, s.bitOffset, s.bitLength,
-				s.endianess == 'little', s.type == 'signed');
+    var val = _signals.decode_signal(
+      msg.data,
+      s.bitOffset,
+      s.bitLength,
+      s.endianess == "little",
+      s.type == "signed"
+    );
 
-		if (s.slope)
-			val *= s.slope;
+    if (s.slope) val *= s.slope;
 
-		if (s.intercept)
-			val += s.intercept;
+    if (s.intercept) val += s.intercept;
 
-		s.update(val);
-	}
-}
+    s.update(val);
+  }
+};
 
 /**
  * Construct a CAN message and encode all related signals according
@@ -314,62 +324,61 @@ DatabaseService.prototype.onMessage = function (msg) {
  * @param msg_name Name of the message to generate
  * @for DatabaseService
  */
-DatabaseService.prototype.send = function (msg_name) {
-	var args = msg_name.split("."); // allow for mux'ed messages sent.
+DatabaseService.prototype.send = function(msg_name) {
+  var args = msg_name.split("."); // allow for mux'ed messages sent.
 
-	var m = this.messages[args[0]];
-	var mux = (args.length > 1) ? args[1] : undefined;
+  var m = this.messages[args[0]];
+  var mux = args.length > 1 ? args[1] : undefined;
 
-	if (!m)
-		throw msg_name + " not defined";
+  if (!m) throw msg_name + " not defined";
 
-	var canmsg = {
-		id: m.id,
-		ext: m.ext,
-		rtr: false,
-		data : (m.len > 0 && m.len < 8) ? new Buffer(m.len) : new Buffer(8)
-	};
+  var canmsg = {
+    id: m.id,
+    ext: m.ext,
+    rtr: false,
+    data: m.len > 0 && m.len < 8 ? new Buffer(m.len) : new Buffer(8)
+  };
 
-	canmsg.data.fill(0); // should be 0xFF for j1939 message def.
+  canmsg.data.fill(0); // should be 0xFF for j1939 message def.
 
+  if (mux) {
+    _signals.encode_signal(canmsg.data, 0, 8, true, false, parseInt(mux, 16));
+  }
+  for (i in m.signals) {
+    var s = m.signals[i];
+    if (s.value == undefined) continue;
 
-	if (mux) {
-		_signals.encode_signal(canmsg.data, 0, 8, true, false,
-				parseInt(mux, 16));
-	}
-	for (i in m.signals) {
-		var s = m.signals[i];
-		if (s.value == undefined)
-			continue;
+    if (mux) {
+      if (s.muxGroup.indexOf(parseInt(mux, 16)) === -1) {
+        continue;
+      }
+    }
 
-		if (mux) {
-			if (s.muxGroup.indexOf(parseInt(mux, 16)) === -1) {
-				continue;
-			}
-		}
+    var val = s.value;
 
-		var val = s.value;
+    // Apply factor/intercept and convert to Integer
+    if (s.intercept) val -= s.intercept;
 
-		// Apply factor/intercept and convert to Integer
-		if (s.intercept)
-			val -= s.intercept;
+    if (s.slope) val /= s.slope;
 
-		if (s.slope)
-			val /= s.slope;
+    if (typeof val == "double") val = parseInt(Math.round(val));
 
-		if (typeof(val) == 'double')
-			val = parseInt(Math.round(val));
+    if (m.len == 0) {
+      return;
+    }
 
-		if (m.len == 0) {
-			return;
-		}
+    _signals.encode_signal(
+      canmsg.data,
+      s.bitOffset,
+      s.bitLength,
+      s.endianess == "little",
+      s.type == "signed",
+      val
+    );
+  }
 
-		_signals.encode_signal(canmsg.data, s.bitOffset, s.bitLength,
-				s.endianess == 'little', s.type == 'signed', val);
-	}
-
-	this.channel.send(canmsg);
-}
+  this.channel.send(canmsg);
+};
 
 /**
  * @method parseNetworkDescription
