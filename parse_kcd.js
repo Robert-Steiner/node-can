@@ -93,7 +93,13 @@ exports.parseKcdFile = function(file) {
           length: message.length ? parseInt(message.length) : 0,
           interval: message.interval ? parseInt(message.interval) : 0,
           muxed: multiplex != undefined,
-          mux: multiplex ? multiplex["$"] : undefined
+          mux: multiplex
+            ? {
+                name: multiplex[0]["$"].name || undefined,
+                length: parseInt(multiplex[0]["$"].length),
+                offset: parseInt(multiplex[0]["$"].offset)
+              }
+            : undefined
         };
 
         // Add messages going out and from whom.

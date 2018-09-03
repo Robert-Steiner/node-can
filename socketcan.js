@@ -225,6 +225,14 @@ function Message(desc) {
   this.muxed = desc.muxed;
 
   /**
+   * Mux object that contains the length, the offset and the name.
+   *
+   * @attribute mux
+   * @final
+   */
+  this.mux = desc.mux;
+
+  /**
    * Named array of signals within this message. Accessible via index and name.
    * @attribute {Signal} signals
    * @final
@@ -290,8 +298,8 @@ DatabaseService.prototype.onMessage = function(msg) {
   // this is the possible multiplexor for the signals coming in.
   var b1mux = _signals.decode_signal(
     msg.data,
-    m.mux.offset,
-    m.mux.length,
+    m.mux ? m.mux.offset : 0,
+    m.mux ? m.mux.length : 8,
     true,
     false
   );
