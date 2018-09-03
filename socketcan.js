@@ -89,6 +89,7 @@ function Signal(desc) {
    * @final
    */
   this.value = null;
+  this.timestamp = null;
 
   this.changelisteners = [];
   this.updateListeners = [];
@@ -137,7 +138,7 @@ Signal.prototype.removeListener = function(listener) {
  * @param newValue {bool|double|integer} New value to set
  * @for Signal
  */
-Signal.prototype.update = function(newValue) {
+Signal.prototype.update = function(newValue, timestamp) {
   if (newValue > this.maxValue) {
     console.error(
       "ERROR : " +
@@ -159,6 +160,7 @@ Signal.prototype.update = function(newValue) {
   }
   var changed = this.value !== newValue;
   this.value = newValue;
+  this.timestamp = timestamp;
 
   // Update all updateListeners, that the signal updated
   for (f in this.updateListeners) {
@@ -327,7 +329,15 @@ DatabaseService.prototype.onMessage = function(msg) {
 
     if (s.intercept) val += s.intercept;
 
-    s.update(val);
+    var timestamp =
+      msg.ts_sec && msg.ts_usec
+        ? {
+            ts_sec: msg.ts_sec,
+            ts_usec: msg.ts_usec
+          }
+        : null;
+
+    s.update(val, timestamp);
   }
 };
 
