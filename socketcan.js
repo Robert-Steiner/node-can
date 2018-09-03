@@ -288,7 +288,13 @@ DatabaseService.prototype.onMessage = function(msg) {
   }
 
   // this is the possible multiplexor for the signals coming in.
-  var b1mux = _signals.decode_signal(msg.data, 0, 8, true, false);
+  var b1mux = _signals.decode_signal(
+    msg.data,
+    m.mux.offset,
+    m.mux.length,
+    true,
+    false
+  );
 
   // Let the C-Portition extract and convert the signal
   for (i in m.signals) {
